@@ -27,5 +27,6 @@
     "target": "es2020",
     "skipLibCheck": true
   },
-  "include": ["./api/**/*.ts"]
+  "include": ["./api/**/*"],
+  "exclude": ["node_modules"]
 }

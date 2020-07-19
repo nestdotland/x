@@ -26,10 +26,3 @@ export function getNameData(name: string, parseFilePath = true): ModuleData | vo
 
   return moduleData as ModuleFileData;
 }
-
-export function validateName(name: string, parseFilePath = true) {
-  // Hacky, but it's true!
-  const data = getNameData(name, parseFilePath as true & false);
-
-  return !!data;
-}
