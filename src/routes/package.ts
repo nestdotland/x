@@ -39,12 +39,9 @@ export default (database: DbConnection, arweave: ArwConnection) => {
       order: { updatedAt: "DESC" }
     });
 
-    let body = {
-      page: page,
-      limit: limit,
-      total: dbPackageCount,
-      packages: dbPackages,
-    };
+    res.set("X-Page", page);
+    res.set("X-Limit", limit);
+    res.set("X-Total", dbPackageCount);
 
     return res.status(200).send(dbPackages);
   });
