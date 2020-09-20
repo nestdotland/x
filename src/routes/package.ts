@@ -1,5 +1,5 @@
 import semver from "semver";
-import { getType } from "mime";
+import { getType, define } from "mime/lite";
 import { Router } from "express";
 import normalize from "../utils/normalize";
 import generateToken from "../utils/token";
@@ -23,6 +23,8 @@ interface OngoingUpload {
 }
 
 const ongoingUploads = new Map<string, OngoingUpload>();
+
+define({ 'application/javascript': ['js', 'ts'] }, true);
 
 export default (database: DbConnection, arweave: ArwConnection) => {
   const router = Router();
@@ -59,7 +61,7 @@ export default (database: DbConnection, arweave: ArwConnection) => {
 
   router.get("/package/:package/:version", async (req, res) => {
     let dbPackage = await database.repositories.Package.findOne({
-      select: [ "name", "owner", "description", "createdAt", "latestVersion", "latestStableVersion" ],
+      select: ["name", "owner", "description", "createdAt", "latestVersion", "latestStableVersion"],
       where: { name: req.params.package }
     });
     if (!dbPackage) return res.sendStatus(404);
@@ -145,7 +147,7 @@ export default (database: DbConnection, arweave: ArwConnection) => {
       pkg.packageUploadNames = [];
       await database.repositories.Package.insert(pkg);
       dbPackage = pkg;
-      dbUser.packageNames = [ ...(dbUser.packageNames || []), pkg.name ];
+      dbUser.packageNames = [...(dbUser.packageNames || []), pkg.name];
       await database.repositories.User.update({ name: dbUser.name }, { packageNames: dbUser.packageNames });
     };
 
@@ -209,7 +211,7 @@ export default (database: DbConnection, arweave: ArwConnection) => {
 
       await regenerateAnchor(arweave);
 
-      let fileMap = (await Promise.all(Object.entries(newUpload.pieces).map(async ([ file, content ]) => {
+      let fileMap = (await Promise.all(Object.entries(newUpload.pieces).map(async ([file, content]) => {
         let fc = Buffer.from(content, "base64");
         let txId = await save(arweave, {
           name: file,
@@ -217,8 +219,8 @@ export default (database: DbConnection, arweave: ArwConnection) => {
           data: fc,
         });
         saveTemp(txId, fc);
-        return [ file, txId ];
-      }))).reduce((p, [ f, l ]) => {
+        return [file, txId];
+      }))).reduce((p, [f, l]) => {
         p[f] = { inManifest: f, txId: l };
         return p;
       }, {} as { [x: string]: { inManifest: string, txId: string } });
@@ -234,7 +236,7 @@ export default (database: DbConnection, arweave: ArwConnection) => {
           index: {
             path: newUpload.entry.replace(/^\//, ""),
           },
-          paths: Object.entries(fileMap).reduce((p, [ f, l ]) => {
+          paths: Object.entries(fileMap).reduce((p, [f, l]) => {
             p[f.replace(/^\//, "")] = { id: l.txId };
             return p;
           }, {} as { [x: string]: { id: string } }),
@@ -253,7 +255,7 @@ export default (database: DbConnection, arweave: ArwConnection) => {
       await database.repositories.Package.update({ name: pkg.name }, {
         latestStableVersion: newUpload.latestStable ? `${newUpload.name}@${newUpload.version}` : undefined,
         latestVersion: newUpload.latest ? `${newUpload.name}@${newUpload.version}` : undefined,
-        packageUploadNames: [ ...(pkg.packageUploadNames || []), packageUpload.name ],
+        packageUploadNames: [...(pkg.packageUploadNames || []), packageUpload.name],
       });
 
       return res.status(201).send({
