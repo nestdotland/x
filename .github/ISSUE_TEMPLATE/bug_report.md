@@ -19,7 +19,7 @@ Please remember that:
   * You might figure out the issues yourself as you work on extracting these details.
   * If you list multiple bugs/concerns in this one issue, it makes it hrd to track the progress.
   * If you open an issue that has many duplicates, the triager may close your issue.
-  * If yuo file something completely blank in the body, the triager may close your issue without further explanation or engagement.
+  * If you file something completely blank in the body, the triager may close your issue without further explanation or engagement.
 
 -->
 
