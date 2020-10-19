@@ -21,7 +21,13 @@ async function start () {
   init(60, 900);
 
   server.disable("x-powered-by");
-  server.use(bodyParser.json({ limit: "50mb" }));
+  server.use(bodyParser.json({ limit: "50mb"}));
+  server.use((err, req, res, next) => {
+    if (err instanceof SyntaxError && "body" in err) {
+      return res.sendStatus(400);
+    }
+    next();
+  });
 
   if (process.env.CLOSED === "yes") {
     server.use("/api/**", (req, res, next) => {

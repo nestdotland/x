@@ -63,7 +63,6 @@ export default (database: DbConnection) => {
     return res.status(200).send({
       success: true,
       name: username,
-      apiKey: rawToken,
     });
   });
 
