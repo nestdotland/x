@@ -1,14 +1,16 @@
-import { getType } from "mime";
+import { getType, define } from "mime/lite";
 import { Router } from "express";
 import { DbConnection } from "../utils/driver";
 import { get as getTemp, has as hasTemp } from "../utils/temp";
 import { get as getTransaction, ArwConnection } from "../utils/arweave";
 
+define({ 'application/javascript': ['js', 'ts'] }, true);
+
 export default (arweave: ArwConnection, database: DbConnection) => {
   const router = Router();
 
   router.get("/:filename*", async (req, res) => {
-    let [ [ packageName, packageVersion ], ...fileNameParts ] = req.path.split("/").slice(1).map((e, i) => (i === 0) ? e.split("@") : e);
+    let [[packageName, packageVersion], ...fileNameParts] = req.path.split("/").slice(1).map((e, i) => (i === 0) ? e.split("@") : e);
     if (!packageName || !packageVersion || !fileNameParts.length) return res.sendStatus(404);
 
     let dbPackage = await database.repositories.Package.findOne({ where: { name: packageName } });
