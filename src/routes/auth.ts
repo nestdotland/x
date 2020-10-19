@@ -75,7 +75,7 @@ export default (database: DbConnection) => {
 
     let newPasswordHash = await hash(newPassword);
 
-    let rawToken = await eToken.decrypt(dbUser.apiKey, password);
+    let rawToken = dbUser.apiKey.startsWith("$") ? await eToken.decrypt(dbUser.apiKey, password) : dbUser.apiKey;
     let encryptedToken = await eToken.encrypt(rawToken, newPassword);
     let dbToken = enableEncryptedTokens ? encryptedToken : rawToken;
 
