@@ -215,7 +215,7 @@ export default (database: DbConnection, arweave: ArwConnection) => {
         let fc = Buffer.from(content, "base64");
         let txId = await save(arweave, {
           name: file,
-          type: getType(file),
+          type: getType(file) || "application/octet-stream",
           data: fc,
         });
         saveTemp(txId, fc);

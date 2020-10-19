@@ -37,13 +37,13 @@ export default (arweave: ArwConnection, database: DbConnection) => {
       }
     } else {
       if (hasTemp(dbFile.txId)) {
-        res.type(getType(req.path));
+        res.type(getType(req.path) || "application/octet-stream");
         return res.send(getTemp(dbFile.txId));
       }
       if (uploadedAgo < 1800) {
         let data = await getTransaction(arweave, dbFile.txId);
         if (!data) return res.sendStatus(404);
-        res.type(getType(req.path));
+        res.type(getType(req.path) || "application/octet-stream");
         return res.send(data);
       } else return res.redirect(dbFileName);
     }
