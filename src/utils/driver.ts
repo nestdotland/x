@@ -3,7 +3,6 @@ import * as t from "typeorm";
 
 @t.Entity("users")
 export class User {
-
   @t.PrimaryColumn("varchar", { length: 20, nullable: false, unique: true })
   name: string;
 
@@ -21,12 +20,10 @@ export class User {
 
   @t.CreateDateColumn({ type: "timestamp with time zone" })
   createdAt: Date;
-
 }
 
 @t.Entity("packages")
 export class Package {
-
   @t.PrimaryColumn("varchar", { length: 40, nullable: false, unique: true })
   name: string;
 
@@ -65,12 +62,10 @@ export class Package {
 
   @t.CreateDateColumn({ type: "timestamp with time zone" })
   createdAt: Date;
-
 }
 
 @t.Entity("package-uploads")
 export class PackageUpload {
-
   @t.PrimaryColumn("varchar", { length: 61, nullable: false, unique: true })
   name: string;
 
@@ -90,16 +85,21 @@ export class PackageUpload {
   malicious?: boolean;
 
   @t.Column("json")
-  files: { [x: string]: { inManifest: string, txId: string } };
+  files: { [x: string]: { inManifest: string; txId: string } };
 
   @t.CreateDateColumn({ type: "timestamp with time zone" })
   createdAt: Date;
-
 }
 
-export type DbConnection = t.Connection & { repositories: { User: t.Repository<User>, Package: t.Repository<Package>, PackageUpload: t.Repository<PackageUpload> } };
+export type DbConnection = t.Connection & {
+  repositories: {
+    User: t.Repository<User>;
+    Package: t.Repository<Package>;
+    PackageUpload: t.Repository<PackageUpload>;
+  };
+};
 
-export async function connect () {
+export async function connect() {
   try {
     const connection: t.Connection = await t.createConnection({
       type: "postgres",
@@ -110,14 +110,10 @@ export async function connect () {
       password: process.env.DB_PASS,
       database: process.env.DB_ROOT,
 
-      entities: [
-        User,
-        Package,
-        PackageUpload
-      ],
+      entities: [User, Package, PackageUpload],
 
       synchronize: false,
-      logging: process.env.NODE_ENV === "production" ? undefined : true
+      logging: process.env.NODE_ENV === "production" ? undefined : true,
     });
 
     let repositories = {

@@ -11,38 +11,45 @@ import { Package, PackageUpload, DbConnection } from "../utils/driver";
 import { ArwConnection, save, regenerateAnchor } from "../utils/arweave";
 
 interface OngoingUpload {
-  token: string,
-  owner: string,
-  description?: string,
-  documentation?: string,
-  entry: string,
-  version: string,
-  name: string,
-  latest: boolean,
-  latestStable: boolean,
-  added: number,
-  pieces: { [x: number]: string },
+  token: string;
+  owner: string;
+  description?: string;
+  documentation?: string;
+  entry: string;
+  version: string;
+  name: string;
+  latest: boolean;
+  latestStable: boolean;
+  added: number;
+  pieces: { [x: number]: string };
 }
 
 const ongoingUploads = new Map<string, OngoingUpload>();
 
-define({ 'application/javascript': ['js', 'ts'] }, true);
+define({ "application/javascript": ["js", "ts"] }, true);
 
 export default (database: DbConnection, arweave: ArwConnection) => {
   const router = Router();
 
-  const enableEncryptedTokens = process.env.ENABLE_ENCRYPTED_TOKENS && process.env.ENABLE_ENCRYPTED_TOKENS === "yes";
+  const enableEncryptedTokens =
+    process.env.ENABLE_ENCRYPTED_TOKENS &&
+    process.env.ENABLE_ENCRYPTED_TOKENS === "yes";
 
   router.get("/packages/:limit?/:page?", async (req, res) => {
-    let limit = Math.max(0, Math.min(999999999999, parseInt(req.params.limit || "999999999999", 10)));
+    let limit = Math.max(
+      0,
+      Math.min(999999999999, parseInt(req.params.limit || "999999999999", 10)),
+    );
     let page = parseInt(req.params.page || "1", 10);
 
-    let dbPackageCount = await database.repositories.Package.count({ where: [{ unlisted: null }, { unlisted: false }] });
+    let dbPackageCount = await database.repositories.Package.count({
+      where: [{ unlisted: null }, { unlisted: false }],
+    });
     let dbPackages = await database.repositories.Package.find({
       where: [{ unlisted: null }, { unlisted: false }],
       skip: (page - 1) * limit,
       take: limit,
-      order: { updatedAt: "DESC" }
+      order: { updatedAt: "DESC" },
     });
 
     res.set("X-Page", page + "");
@@ -53,7 +60,9 @@ export default (database: DbConnection, arweave: ArwConnection) => {
   });
 
   router.get("/package/:package", async (req, res) => {
-    let dbPackage = await database.repositories.Package.findOne({ where: { name: req.params.package } });
+    let dbPackage = await database.repositories.Package.findOne({
+      where: { name: req.params.package },
+    });
     if (!dbPackage) return res.sendStatus(404);
 
     let body = {
@@ -65,18 +74,31 @@ export default (database: DbConnection, arweave: ArwConnection) => {
 
   router.get("/package/:package/:version", async (req, res) => {
     let dbPackage = await database.repositories.Package.findOne({
-      select: ["name", "owner", "description", "createdAt", "latestVersion", "latestStableVersion"],
-      where: { name: req.params.package }
+      select: [
+        "name",
+        "owner",
+        "description",
+        "createdAt",
+        "latestVersion",
+        "latestStableVersion",
+      ],
+      where: { name: req.params.package },
     });
     if (!dbPackage) return res.sendStatus(404);
 
-    let dbPackageUpload = await database.repositories.PackageUpload.findOne({ where: { name: `${req.params.package}@${req.params.version}` } });
+    let dbPackageUpload = await database.repositories.PackageUpload.findOne({
+      where: { name: `${req.params.package}@${req.params.version}` },
+    });
     if (!dbPackageUpload) return res.sendStatus(404);
 
     let body = {
       ...dbPackageUpload,
-      latest: (dbPackage.latestVersion === dbPackageUpload.version) ? true : undefined,
-      latestStable: (dbPackage.latestStableVersion === dbPackageUpload.version) ? true : undefined,
+      latest:
+        dbPackage.latestVersion === dbPackageUpload.version ? true : undefined,
+      latestStable:
+        dbPackage.latestStableVersion === dbPackageUpload.version
+          ? true
+          : undefined,
       package: {
         ...dbPackage,
         latestVersion: undefined,
@@ -96,12 +118,16 @@ export default (database: DbConnection, arweave: ArwConnection) => {
     if (authHeader.startsWith("Bearer ")) {
       let apiKey = authHeader.slice("Bearer ".length);
       if (apiKey.startsWith("$")) return res.sendStatus(401);
-      dbUser = await database.repositories.User.findOne({ where: { apiKey: apiKey } });
+      dbUser = await database.repositories.User.findOne({
+        where: { apiKey: apiKey },
+      });
     } else if (authHeader.startsWith("NEAT1 ")) {
       if (!enableEncryptedTokens) return res.sendStatus(401);
-      let [ username, apiKey ] = authHeader.slice("NEAT1 ".length).split(" ");
+      let [username, apiKey] = authHeader.slice("NEAT1 ".length).split(" ");
       if (!username || !apiKey) return res.sendStatus(401);
-      let dbUserN = await database.repositories.User.findOne({ where: { name: username } });
+      let dbUserN = await database.repositories.User.findOne({
+        where: { name: username },
+      });
       if (!dbUserN) return res.sendStatus(401);
       if (dbUserN.apiKey.startsWith("$")) {
         let isValid = eToken.verify(dbUserN.apiKey, apiKey);
@@ -109,7 +135,10 @@ export default (database: DbConnection, arweave: ArwConnection) => {
       } else {
         let isEqualLength = dbUserN.apiKey.length === apiKey.length;
         if (!isEqualLength) return res.sendStatus(401);
-        let isEqual = crypto.timingSafeEqual(Buffer.from(dbUserN.apiKey, "utf8"), Buffer.from(apiKey, "utf8"));
+        let isEqual = crypto.timingSafeEqual(
+          Buffer.from(dbUserN.apiKey, "utf8"),
+          Buffer.from(apiKey, "utf8"),
+        );
         if (!isEqual) return res.sendStatus(401);
       }
       dbUser = dbUserN;
@@ -117,18 +146,38 @@ export default (database: DbConnection, arweave: ArwConnection) => {
 
     if (!dbUser) return res.sendStatus(401);
 
-    let { name, description, documentation, version, latest, stable, upload, unlisted, repository, entry } = req.body;
-    if (typeof name !== "string" || name.length > 40 || name.length < 2) return res.sendStatus(400);
-    if (repository && typeof repository !== "string") return res.sendStatus(400);
+    let {
+      name,
+      description,
+      documentation,
+      version,
+      latest,
+      stable,
+      upload,
+      unlisted,
+      repository,
+      entry,
+    } = req.body;
+    if (typeof name !== "string" || name.length > 40 || name.length < 2)
+      return res.sendStatus(400);
+    if (repository && typeof repository !== "string")
+      return res.sendStatus(400);
     if (entry && typeof entry !== "string") return res.sendStatus(400);
-    if (typeof upload !== "undefined" && typeof upload !== "boolean") return res.sendStatus(400);
-    if (typeof unlisted !== "undefined" && typeof unlisted !== "boolean") return res.sendStatus(400);
-    if (description && typeof description !== "string") return res.sendStatus(400);
-    if (documentation && typeof documentation !== "string") return res.sendStatus(400);
-    if (version && (typeof version !== "string" || version.length > 20)) return res.sendStatus(400);
+    if (typeof upload !== "undefined" && typeof upload !== "boolean")
+      return res.sendStatus(400);
+    if (typeof unlisted !== "undefined" && typeof unlisted !== "boolean")
+      return res.sendStatus(400);
+    if (description && typeof description !== "string")
+      return res.sendStatus(400);
+    if (documentation && typeof documentation !== "string")
+      return res.sendStatus(400);
+    if (version && (typeof version !== "string" || version.length > 20))
+      return res.sendStatus(400);
 
-    if (name.indexOf("@") !== -1 || name.indexOf(" ") !== -1) return res.sendStatus(403);
-    if (!isNameOkay(name) && dbUser.packageNames.indexOf(name) === -1) return res.sendStatus(403);
+    if (name.indexOf("@") !== -1 || name.indexOf(" ") !== -1)
+      return res.sendStatus(403);
+    if (!isNameOkay(name) && dbUser.packageNames.indexOf(name) === -1)
+      return res.sendStatus(403);
 
     if (!version) version = "0.0.1";
     if (!semver.valid(version)) return res.sendStatus(400);
@@ -138,27 +187,43 @@ export default (database: DbConnection, arweave: ArwConnection) => {
     let nzName = normalize(name);
     if (!nzName) return res.sendStatus(400);
 
-    let dbPackage = await database.repositories.Package.findOne({ where: { normalizedName: nzName } });
+    let dbPackage = await database.repositories.Package.findOne({
+      where: { normalizedName: nzName },
+    });
 
     if (dbPackage && dbPackage.name !== name) return res.sendStatus(409);
-    if (dbPackage && dbPackage.packageUploadNames.indexOf(`${name}@${version}`) !== -1) return res.sendStatus(409);
-    if (dbPackage && dbPackage.owner !== dbUser.name) return res.sendStatus(403);
+    if (
+      dbPackage &&
+      dbPackage.packageUploadNames.indexOf(`${name}@${version}`) !== -1
+    )
+      return res.sendStatus(409);
+    if (dbPackage && dbPackage.owner !== dbUser.name)
+      return res.sendStatus(403);
 
     if (dbPackage && dbPackage.locked) return res.sendStatus(423);
 
     if (dbPackage && description) {
-      dbPackage.description = (description === "none") ? null : description;
-      await database.repositories.Package.update({ name: name }, { description: dbPackage.description });
+      dbPackage.description = description === "none" ? null : description;
+      await database.repositories.Package.update(
+        { name: name },
+        { description: dbPackage.description },
+      );
     }
 
     if (dbPackage && repository) {
-      dbPackage.repository = (repository === "none") ? null : repository;
-      await database.repositories.Package.update({ name: name }, { repository: dbPackage.repository });
+      dbPackage.repository = repository === "none" ? null : repository;
+      await database.repositories.Package.update(
+        { name: name },
+        { repository: dbPackage.repository },
+      );
     }
 
     if (dbPackage && typeof unlisted !== "undefined") {
       dbPackage.unlisted = unlisted;
-      await database.repositories.Package.update({ name: name }, { unlisted: unlisted });
+      await database.repositories.Package.update(
+        { name: name },
+        { unlisted: unlisted },
+      );
     }
 
     if (!dbPackage) {
@@ -175,8 +240,11 @@ export default (database: DbConnection, arweave: ArwConnection) => {
       await database.repositories.Package.insert(pkg);
       dbPackage = pkg;
       dbUser.packageNames = [...(dbUser.packageNames || []), pkg.name];
-      await database.repositories.User.update({ name: dbUser.name }, { packageNames: dbUser.packageNames });
-    };
+      await database.repositories.User.update(
+        { name: dbUser.name },
+        { packageNames: dbUser.packageNames },
+      );
+    }
 
     if (upload) {
       let uploadToken = generateToken();
@@ -208,7 +276,6 @@ export default (database: DbConnection, arweave: ArwConnection) => {
         owner: dbUser.name,
       });
     }
-
   });
 
   router.post("/piece", async (req, res) => {
@@ -217,19 +284,29 @@ export default (database: DbConnection, arweave: ArwConnection) => {
     if (!ongoingUploads.has(uploadToken)) return res.sendStatus(404);
 
     if (!req.headers["content-length"]) return res.sendStatus(411);
-    if (parseInt(req.headers["content-length"].toString()) > 20 * 1024 ** 2) return res.send(413);
+    if (parseInt(req.headers["content-length"].toString()) > 20 * 1024 ** 2)
+      return res.send(413);
 
     let { pieces, end } = req.body;
-    if (typeof pieces !== "undefined" && typeof pieces !== "object") return res.sendStatus(400);
-    if (typeof end !== "undefined" && typeof end !== "boolean") return res.sendStatus(400);
+    if (typeof pieces !== "undefined" && typeof pieces !== "object")
+      return res.sendStatus(400);
+    if (typeof end !== "undefined" && typeof end !== "boolean")
+      return res.sendStatus(400);
 
-    if (pieces && Object.entries(pieces).reduce((p, c) => p || typeof c[0] !== "string" || typeof c[1] !== "string", false)) return res.sendStatus(400);
+    if (
+      pieces &&
+      Object.entries(pieces).reduce(
+        (p, c) => p || typeof c[0] !== "string" || typeof c[1] !== "string",
+        false,
+      )
+    )
+      return res.sendStatus(400);
 
     let newUpload = {
       ...ongoingUploads.get(uploadToken),
       pieces: {
         ...ongoingUploads.get(uploadToken).pieces,
-        ...(pieces || {})
+        ...(pieces || {}),
       } as { [x: string]: string },
     };
 
@@ -238,36 +315,42 @@ export default (database: DbConnection, arweave: ArwConnection) => {
 
       await regenerateAnchor(arweave);
 
-      let fileMap = (await Promise.all(Object.entries(newUpload.pieces).map(async ([file, content]) => {
-        let fc = Buffer.from(content, "base64");
-        let txId = await save(arweave, {
-          name: file,
-          type: getType(file) || "application/octet-stream",
-          data: fc,
-        });
-        saveTemp(txId, fc);
-        return [file, txId];
-      }))).reduce((p, [f, l]) => {
+      let fileMap = (
+        await Promise.all(
+          Object.entries(newUpload.pieces).map(async ([file, content]) => {
+            let fc = Buffer.from(content, "base64");
+            let txId = await save(arweave, {
+              name: file,
+              type: getType(file) || "application/octet-stream",
+              data: fc,
+            });
+            saveTemp(txId, fc);
+            return [file, txId];
+          }),
+        )
+      ).reduce((p, [f, l]) => {
         p[f] = { inManifest: f, txId: l };
         return p;
-      }, {} as { [x: string]: { inManifest: string, txId: string } });
+      }, {} as { [x: string]: { inManifest: string; txId: string } });
 
       delete newUpload.pieces;
 
       let manifestId = await save(arweave, {
         name: "manifest.json",
         type: "application/x.arweave-manifest+json",
-        data: Buffer.from(JSON.stringify({
-          manifest: "arweave/paths",
-          version: "0.1.0",
-          index: {
-            path: newUpload.entry.replace(/^\//, ""),
-          },
-          paths: Object.entries(fileMap).reduce((p, [f, l]) => {
-            p[f.replace(/^\//, "")] = { id: l.txId };
-            return p;
-          }, {} as { [x: string]: { id: string } }),
-        })),
+        data: Buffer.from(
+          JSON.stringify({
+            manifest: "arweave/paths",
+            version: "0.1.0",
+            index: {
+              path: newUpload.entry.replace(/^\//, ""),
+            },
+            paths: Object.entries(fileMap).reduce((p, [f, l]) => {
+              p[f.replace(/^\//, "")] = { id: l.txId };
+              return p;
+            }, {} as { [x: string]: { id: string } }),
+          }),
+        ),
       });
       let packageUpload = new PackageUpload();
       packageUpload.name = `${newUpload.name}@${newUpload.version}`;
@@ -278,12 +361,24 @@ export default (database: DbConnection, arweave: ArwConnection) => {
       packageUpload.entry = newUpload.entry;
       await database.repositories.PackageUpload.save(packageUpload);
 
-      let pkg = await database.repositories.Package.findOne({ name: newUpload.name });
-      await database.repositories.Package.update({ name: pkg.name }, {
-        latestStableVersion: newUpload.latestStable ? `${newUpload.name}@${newUpload.version}` : undefined,
-        latestVersion: newUpload.latest ? `${newUpload.name}@${newUpload.version}` : undefined,
-        packageUploadNames: [...(pkg.packageUploadNames || []), packageUpload.name],
+      let pkg = await database.repositories.Package.findOne({
+        name: newUpload.name,
       });
+      await database.repositories.Package.update(
+        { name: pkg.name },
+        {
+          latestStableVersion: newUpload.latestStable
+            ? `${newUpload.name}@${newUpload.version}`
+            : undefined,
+          latestVersion: newUpload.latest
+            ? `${newUpload.name}@${newUpload.version}`
+            : undefined,
+          packageUploadNames: [
+            ...(pkg.packageUploadNames || []),
+            packageUpload.name,
+          ],
+        },
+      );
 
       return res.status(201).send({
         success: true,

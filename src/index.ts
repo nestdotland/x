@@ -12,8 +12,7 @@ import packageRouter from "./routes/package";
 
 dotenv.config();
 
-async function start () {
-
+async function start() {
   const server = express();
   const arweave = await connectArweave();
   const database = await connectDatabase();
@@ -21,7 +20,7 @@ async function start () {
   init(60, 900);
 
   server.disable("x-powered-by");
-  server.use(bodyParser.json({ limit: "50mb"}));
+  server.use(bodyParser.json({ limit: "50mb" }));
   server.use((err, req, res, next) => {
     if (err instanceof SyntaxError && "body" in err) {
       return res.sendStatus(400);
@@ -31,11 +30,16 @@ async function start () {
 
   if (process.env.CLOSED === "yes") {
     server.use("/api/**", (req, res, next) => {
-      if (!req.headers["x-secret-salt"] || !req.headers["x-secret-hash"]) return res.sendStatus(401);
-        let serverHash = crypto.createHmac("sha384", process.env.SECRET).update(req.headers["x-secret-salt"].toString()).digest("hex");
-        if (serverHash !== req.headers["x-secret-hash"]) return res.sendStatus(401);
+      if (!req.headers["x-secret-salt"] || !req.headers["x-secret-hash"])
+        return res.sendStatus(401);
+      let serverHash = crypto
+        .createHmac("sha384", process.env.SECRET)
+        .update(req.headers["x-secret-salt"].toString())
+        .digest("hex");
+      if (serverHash !== req.headers["x-secret-hash"])
+        return res.sendStatus(401);
 
-        return next();
+      return next();
     });
   }
 
@@ -57,8 +61,10 @@ async function start () {
   });
 
   server.listen(parseInt(process.env.PORT), process.env.HOST, () => {
-    console.log(`Started x.nest.land on http://${process.env.HOST}:${process.env.PORT}`);
+    console.log(
+      `Started x.nest.land on http://${process.env.HOST}:${process.env.PORT}`,
+    );
   });
-};
+}
 
 if (require.main === module) start();

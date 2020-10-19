@@ -65,6 +65,6 @@ export const RESERVED = new Set([
   "libre",
 ]);
 
-export default function isNameOkay (name: string) {
+export default function isNameOkay(name: string) {
   return !RESERVED.has(name);
 }

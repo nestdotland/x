@@ -5,22 +5,32 @@ import { hash, verify } from "../utils/password";
 import { User, DbConnection } from "../utils/driver";
 
 export default (database: DbConnection) => {
-  const enableEncryptedTokens = process.env.ENABLE_ENCRYPTED_TOKENS && process.env.ENABLE_ENCRYPTED_TOKENS === "yes";
+  const enableEncryptedTokens =
+    process.env.ENABLE_ENCRYPTED_TOKENS &&
+    process.env.ENABLE_ENCRYPTED_TOKENS === "yes";
 
   const router = Router();
 
   router.post("/signup", async (req, res) => {
-    let { username, password }: { username: string, password: string } = req.body;
+    let {
+      username,
+      password,
+    }: { username: string; password: string } = req.body;
     if (!username || !password) return res.sendStatus(400);
-    if (typeof username !== "string" || typeof password !== "string") return res.sendStatus(400);
+    if (typeof username !== "string" || typeof password !== "string")
+      return res.sendStatus(400);
 
     if (username.length > 20 || username.length < 3) return res.sendStatus(400);
 
     let nzName = normalize(username);
     if (!nzName) return res.sendStatus(400);
 
-    if (await database.repositories.User.findOne({ where: { normalizedName: nzName } })) return res.sendStatus(409);
-
+    if (
+      await database.repositories.User.findOne({
+        where: { normalizedName: nzName },
+      })
+    )
+      return res.sendStatus(409);
 
     let user = new User();
     user.name = username;
@@ -40,13 +50,24 @@ export default (database: DbConnection) => {
   });
 
   router.post("/newpassword", async (req, res) => {
-    const { username, password, newPassword }: { username: string, password: string, newPassword: string } = req.body;
+    const {
+      username,
+      password,
+      newPassword,
+    }: { username: string; password: string; newPassword: string } = req.body;
     if (!username || !password || !newPassword) return res.sendStatus(400);
-    if (typeof username !== "string" || typeof password !== "string" || typeof newPassword !== "string") return res.sendStatus(400);
+    if (
+      typeof username !== "string" ||
+      typeof password !== "string" ||
+      typeof newPassword !== "string"
+    )
+      return res.sendStatus(400);
 
     if (username.length > 20) return res.sendStatus(400);
 
-    let dbUser = await database.repositories.User.findOne({ where: { name: username } });
+    let dbUser = await database.repositories.User.findOne({
+      where: { name: username },
+    });
     if (!dbUser) return res.sendStatus(404);
 
     let passwordMatch = await verify(password, dbUser.password);
@@ -58,7 +79,10 @@ export default (database: DbConnection) => {
     let encryptedToken = await eToken.encrypt(rawToken, newPassword);
     let dbToken = enableEncryptedTokens ? encryptedToken : rawToken;
 
-    await database.repositories.User.update({ name: dbUser.name }, { password: newPasswordHash, apiKey: dbToken });
+    await database.repositories.User.update(
+      { name: dbUser.name },
+      { password: newPasswordHash, apiKey: dbToken },
+    );
 
     return res.status(200).send({
       success: true,
@@ -67,12 +91,17 @@ export default (database: DbConnection) => {
   });
 
   router.post("/getkey", async (req, res) => {
-    const { username, password }: { username: string, password: string } = req.body;
+    const {
+      username,
+      password,
+    }: { username: string; password: string } = req.body;
     if (!username || !password) return res.sendStatus(400);
 
     if (username.length > 20) return res.sendStatus(400);
 
-    let dbUser = await database.repositories.User.findOne({ where: { name: username } });
+    let dbUser = await database.repositories.User.findOne({
+      where: { name: username },
+    });
     if (!dbUser) return res.sendStatus(404);
 
     let passwordMatch = await verify(password, dbUser.password);
@@ -89,12 +118,17 @@ export default (database: DbConnection) => {
   });
 
   router.post("/newkey", async (req, res) => {
-    const { username, password }: { username: string, password: string } = req.body;
+    const {
+      username,
+      password,
+    }: { username: string; password: string } = req.body;
     if (!username || !password) return res.sendStatus(400);
 
     if (username.length > 20) return res.sendStatus(400);
 
-    let dbUser = await database.repositories.User.findOne({ where: { name: username } });
+    let dbUser = await database.repositories.User.findOne({
+      where: { name: username },
+    });
     if (!dbUser) return res.sendStatus(404);
 
     let passwordMatch = await verify(password, dbUser.password);
@@ -103,7 +137,10 @@ export default (database: DbConnection) => {
     let tokenPair = await eToken.generate(password);
     let dbToken = enableEncryptedTokens ? tokenPair[1] : tokenPair[0];
 
-    await database.repositories.User.update({ name: dbUser.name }, { apiKey: dbToken });
+    await database.repositories.User.update(
+      { name: dbUser.name },
+      { apiKey: dbToken },
+    );
 
     return res.status(200).send({
       success: true,

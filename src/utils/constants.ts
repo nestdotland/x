@@ -17,19 +17,20 @@ export const ENCRYPTION_ALGOS = {
   },
 };
 
-export const DEFAULT_ENCRYPTION_ALGO: keyof typeof ENCRYPTION_ALGOS = "chacha20-blake2b";
+export const DEFAULT_ENCRYPTION_ALGO: keyof typeof ENCRYPTION_ALGOS =
+  "chacha20-blake2b";
 
 export const HASH_ALGOS = {
-  "sha256": {
-    keylen: 32
+  sha256: {
+    keylen: 32,
   },
-  "sha384": {
-    keylen: 48
+  sha384: {
+    keylen: 48,
   },
-  "sha512": {
-    keylen: 64
+  sha512: {
+    keylen: 64,
   },
-  "blake2b512": {
+  blake2b512: {
     keylen: 64,
   },
 };
