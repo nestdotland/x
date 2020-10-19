@@ -268,12 +268,14 @@ export default (database: DbConnection, arweave: ArwConnection) => {
         token: uploadToken,
         name: `${name}@${version}`,
         owner: dbUser.name,
+        _username: dbUser.name,
       });
     } else {
       return res.status(200).send({
         success: true,
         name: `${name}@${version}`,
         owner: dbUser.name,
+        _username: dbUser.name,
       });
     }
   });
