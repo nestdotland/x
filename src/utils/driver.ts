@@ -13,7 +13,7 @@ export class User {
   @t.Column("varchar", { length: 256, nullable: false })
   password: string;
 
-  @t.Column("varchar", { length: 256, nullable: false })
+  @t.Column("varchar", { length: 384, nullable: false })
   apiKey: string;
 
   @t.Column("varchar", { array: true, length: 40, nullable: true })

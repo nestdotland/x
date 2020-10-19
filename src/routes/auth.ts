@@ -4,9 +4,9 @@ import eToken from "../utils/encryptedToken";
 import { hash, verify } from "../utils/password";
 import { User, DbConnection } from "../utils/driver";
 
-const enableEncryptedTokens = process.env.ENABLE_ENCRYPTED_TOKENS && process.env.ENABLE_ENCRYPTED_TOKENS === "yes";
-
 export default (database: DbConnection) => {
+  const enableEncryptedTokens = process.env.ENABLE_ENCRYPTED_TOKENS && process.env.ENABLE_ENCRYPTED_TOKENS === "yes";
+
   const router = Router();
 
   router.post("/signup", async (req, res) => {
@@ -101,7 +101,7 @@ export default (database: DbConnection) => {
     let passwordMatch = await verify(password, dbUser.password);
     if (!passwordMatch) return res.sendStatus(401);
 
-    let tokenPair = eToken.generate(password);
+    let tokenPair = await eToken.generate(password);
     let dbToken = enableEncryptedTokens ? tokenPair[1] : tokenPair[0];
 
     await database.repositories.User.update({ name: dbUser.name }, { apiKey: dbToken });

@@ -31,6 +31,8 @@ define({ 'application/javascript': ['js', 'ts'] }, true);
 export default (database: DbConnection, arweave: ArwConnection) => {
   const router = Router();
 
+  const enableEncryptedTokens = process.env.ENABLE_ENCRYPTED_TOKENS && process.env.ENABLE_ENCRYPTED_TOKENS === "yes";
+
   router.get("/packages/:limit?/:page?", async (req, res) => {
     let limit = Math.max(0, Math.min(999999999999, parseInt(req.params.limit || "999999999999", 10)));
     let page = parseInt(req.params.page || "1", 10);
@@ -94,6 +96,7 @@ export default (database: DbConnection, arweave: ArwConnection) => {
     if (authHeader.startsWith("Bearer ")) {
        dbUser = await database.repositories.User.findOne({ where: { apiKey: authHeader.slice("Bearer ".length) } });
     } else if (authHeader.startsWith("NEAT1 ")) {
+      if (!enableEncryptedTokens) return res.sendStatus(401);
       let [ username, apiKey ] = authHeader.slice("NEAT1 ".length).split(" ");
       if (!username || !apiKey) return res.sendStatus(401);
       let dbUserN = await database.repositories.User.findOne({ where: { name: username } });
