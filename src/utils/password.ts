@@ -33,11 +33,14 @@ const ALGOS = {
   "sha512": {
     keylen: 64
   },
+  "blake2b512": {
+    keylen: 64,
+  },
 };
 
 const DEFAULT_SALT_LENGTH = 18;
-const DEFAULT_ALGO = "sha384";
-const DEFAULT_ROUNDS = 12000;
+const DEFAULT_ALGO = "blake2b512";
+const DEFAULT_ROUNDS = 32000;
 
 export function hash (password: string): Promise<string> {
   return new Promise((res, rej) => {

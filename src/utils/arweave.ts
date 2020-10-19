@@ -8,7 +8,7 @@ export async function connect () {
     host: "arweave.net",
     port: 443,
     protocol: "https",
-    timeout: 20000,
+    timeout: 32000,
     logging: process.env.NODE_ENV === "development",
     logger: (...e) => process.env.NODE_ENV === "development" ? console.log(...e) : void e,
   });

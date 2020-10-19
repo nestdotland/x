@@ -30,6 +30,7 @@
     "@types/mime": "^2.0.2",
     "@types/semver": "^7.2.0",
     "cross-env": "^7.0.2",
+    "prettier": "^2.1.2",
     "ts-node": "^8.10.2",
     "ts-node-dev": "^1.0.0-pre.44",
     "typescript": "^3.9.5"
