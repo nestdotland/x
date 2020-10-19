@@ -1,0 +1,53 @@
+Nest.land Encrypted Authorization Token
+Revision 1
+
+NEAT1 is our newest solution to encrypting user tokens in our API while still making them available to users. In essence, it's a combination of a ciphertext and a hash, which we store in our DB and which allows us to both verify tokens and show them to the user when they request it, while preventing us and with access to the database from seeing it. It's intended to be a protection measure against any hypothetical adversary that gained read-only access to the nest.land database. Note that this will not defend against an attacker with write access, because they could just bypass authentication completely.
+
+------
+
+This is what a NEAT1 token could look like:
+
+$chacha20-blake2b$F7/yZTST6+Z1VaHz/E2SxA:DSUp+djFixVvb0L2Y5Z4Yw:4vBkgH3td0/9v0JygLGNsAUs/vh/G/Y2S73V+6CBihMW9KC1:DUE5ndWlRLnoEUwRtwKu6tw/7jOlATMiOH/cI/M+8OCzGa73e8fflZt20GcxIDfR43G/JkZHyZnzLvYbu9Hl0Q$
+
+------
+
+And this is what it represents:
+
+$algorithm-identifier$iv-and-salt:auth-tag:encrypted-token:hashed-token$
+
+------
+
+Let's break that down:
+
+$ - Used as a separator and start/stop marker, as well as to show it's a NEAT1 token, not an unencrypted one
+
+algorithm-identifier - Name of the algorithm combination used for this tag. Currently supported:
+    * chacha20-blake2b - Uses ChaCha20 for encryption and BLAKE2b512 for hashing
+    * aes128ctr-sha256 - Uses AES128 with CTR mode for encryption and SHA2-256 for hashing
+
+iv-and-salt - IV (for cipher) and salt (for hashing and KDF)
+
+auth-tag - Like the auth-tag in an AEAD, but here we're using an ordinary PRF/hash function after encryption.
+
+encrypted-token - Ciphertext of the token
+
+hashed-token - Salted hash of the token
+
+------
+
+To authenticate to our API using NEAT1, use an Authorization header:
+Authorization: NEAT1 [username] [token]
+
+------
+
+Additionally, we'd like to address a few things:
+
+We pass the users password through PBKDF2 and use the output as the key for encryption, this means that even a short password should be relatively safe.
+
+We're not using HMAC, but this should not be an issue as length-extension attacks are not a concern here, because users are not able to pass data directly to the otherwise-wouldbe-vulnerable hash instances. If you disagree with this, and think that we're making ourselves vulnerable, please contact us.
+
+We also don't want NEAT1 to be one of those protocols that don't need to transmit credentials, instead it focuses on storing tokens securely at rest. If there's demand, we could consider working on "SNEAT1", a more secure version with some sort of digest algorithm built in.
+
+If you have any suggestions, please do not hesitate to open an issue on Github shoot us a message on Discord, we take all ideas into consideration.
+
+------
