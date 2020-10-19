@@ -10,7 +10,7 @@ export async function connect () {
     protocol: "https",
     timeout: 20000,
     logging: process.env.NODE_ENV === "development",
-    logger: (...e) => console.log(...e),
+    logger: (...e) => process.env.NODE_ENV === "development" ? console.log(...e) : void e,
   });
 
   (arweave as any).anchor = (await arweave.api.get("tx_anchor")).data;
@@ -40,7 +40,7 @@ export async function save (connection: ArwConnection, data: { name: string, typ
   await connection.transactions.sign(transaction, Credentials);
   const res = await connection.transactions.post(transaction);
 
-  if (res.status >= 300) throw new Error("Transaction failed!");
+  if (res.status >= 400) throw new Error("Transaction failed!");
 
   return transaction.id;
 }
