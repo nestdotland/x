@@ -18,10 +18,12 @@ export function init (time = 60, age = 1800) {
 }
 
 export function save (id: string, data: Buffer) {
+  if (id.indexOf("../") !== -1) return false;
   fs.writeFileSync(path.join("./.tmp", id), data);
 }
 
 export function get (id: string) {
+  if (id.indexOf("../") !== -1) return null;
   let f = path.join("./.tmp", id);
   if (fs.existsSync(f)) {
     return fs.readFileSync(f);
