@@ -1,8 +1,10 @@
+import crypto from "crypto";
 import semver from "semver";
 import { getType, define } from "mime/lite";
 import { Router } from "express";
 import normalize from "../utils/normalize";
 import generateToken from "../utils/token";
+import eToken from "../utils/encryptedToken";
 import isNameOkay from "../utils/reservedNames";
 import { save as saveTemp } from "../utils/temp";
 import { Package, PackageUpload, DbConnection } from "../utils/driver";
@@ -84,10 +86,30 @@ export default (database: DbConnection, arweave: ArwConnection) => {
   });
 
   router.post("/publish", async (req, res) => {
-    let apiKey = req.headers["authorization"]?.toString().replace(/^Bearer /, "");
-    if (!apiKey) return res.sendStatus(401);
+    let authHeader = req.headers.authorization;
+    if (!authHeader) return res.sendStatus(401);
 
-    let dbUser = await database.repositories.User.findOne({ where: { apiKey: apiKey } });
+    let dbUser;
+
+    if (authHeader.startsWith("Bearer ")) {
+       dbUser = await database.repositories.User.findOne({ where: { apiKey: authHeader.slice("Bearer ".length) } });
+    } else if (authHeader.startsWith("NETA1 ")) {
+      let [ username, apiKey ] = authHeader.slice("NETA1 ".length).split(" ");
+      if (!username || !apiKey) return res.sendStatus(401);
+      let dbUserN = await database.repositories.User.findOne({ where: { name: username } });
+      if (!dbUserN) return res.sendStatus(401);
+      if (dbUserN.apiKey.startsWith("$")) {
+        let isValid = eToken.verify(dbUserN.apiKey, apiKey);
+        if (!isValid) return res.sendStatus(401);
+      } else {
+        let isEqualLength = dbUserN.apiKey.length === apiKey.length;
+        if (!isEqualLength) return res.sendStatus(401);
+        let isEqual = crypto.timingSafeEqual(Buffer.from(dbUserN.apiKey, "utf8"), Buffer.from(apiKey, "utf8"));
+        if (!isEqual) return res.sendStatus(401);
+      }
+      dbUser = dbUserN;
+    }
+
     if (!dbUser) return res.sendStatus(401);
 
     let { name, description, documentation, version, latest, stable, upload, unlisted, repository, entry } = req.body;

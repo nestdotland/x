@@ -1,4 +1,7 @@
 export const RESERVED = new Set([
+  // /api - won't work for obvious reasons
+  "api",
+
   // std package names and Node.js default packages
   "_util",
   "archive",

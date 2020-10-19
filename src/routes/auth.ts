@@ -1,9 +1,10 @@
 import { Router } from "express";
 import normalize from "../utils/normalize";
-import generateToken from "../utils/token";
+import eToken from "../utils/encryptedToken";
 import { hash, verify } from "../utils/password";
 import { User, DbConnection } from "../utils/driver";
 
+const enableEncryptedTokens = process.env.ENABLE_ENCRYPTED_TOKENS && process.env.ENABLE_ENCRYPTED_TOKENS === "yes";
 
 export default (database: DbConnection) => {
   const router = Router();
@@ -25,7 +26,8 @@ export default (database: DbConnection) => {
     user.name = username;
     user.normalizedName = nzName;
     user.password = await hash(password);
-    user.apiKey = generateToken();
+    let tokenPair = await eToken.generate(password);
+    user.apiKey = enableEncryptedTokens ? tokenPair[1] : tokenPair[0];
     user.packageNames = [];
 
     await database.repositories.User.insert(user);
@@ -33,7 +35,7 @@ export default (database: DbConnection) => {
     return res.status(201).send({
       success: true,
       name: username,
-      apiKey: user.apiKey,
+      apiKey: tokenPair[0],
     });
   });
 
@@ -52,11 +54,16 @@ export default (database: DbConnection) => {
 
     let newPasswordHash = await hash(newPassword);
 
-    await database.repositories.User.update({ name: dbUser.name }, { password: newPasswordHash });
+    let rawToken = await eToken.decrypt(dbUser.apiKey, password);
+    let encryptedToken = await eToken.encrypt(rawToken, newPassword);
+    let dbToken = enableEncryptedTokens ? encryptedToken : rawToken;
+
+    await database.repositories.User.update({ name: dbUser.name }, { password: newPasswordHash, apiKey: dbToken });
 
     return res.status(200).send({
       success: true,
       name: username,
+      apiKey: rawToken,
     });
   });
 
@@ -72,10 +79,13 @@ export default (database: DbConnection) => {
     let passwordMatch = await verify(password, dbUser.password);
     if (!passwordMatch) return res.sendStatus(401);
 
+    let token = dbUser.apiKey;
+    if (token.startsWith("$")) token = await eToken.decrypt(token, password);
+
     return res.status(200).send({
       success: true,
       name: username,
-      apiKey: dbUser.apiKey,
+      apiKey: token,
     });
   });
 
@@ -91,14 +101,15 @@ export default (database: DbConnection) => {
     let passwordMatch = await verify(password, dbUser.password);
     if (!passwordMatch) return res.sendStatus(401);
 
-    let newApiKey = generateToken();
+    let tokenPair = eToken.generate(password);
+    let dbToken = enableEncryptedTokens ? tokenPair[1] : tokenPair[0];
 
-    await database.repositories.User.update({ name: dbUser.name }, { apiKey: newApiKey });
+    await database.repositories.User.update({ name: dbUser.name }, { apiKey: dbToken });
 
     return res.status(200).send({
       success: true,
       name: username,
-      apiKey: newApiKey,
+      apiKey: tokenPair[0],
     });
   });
 

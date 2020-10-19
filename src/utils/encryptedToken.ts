@@ -1,32 +1,12 @@
 import crypto from "crypto";
 import token from "./token";
+import constants from "./constants";
 import { hash } from "./password";
-
-const ENCRYPTION_ALGOS = {
-  "chacha20-blake2b": {
-    algoName: "chacha20",
-    ivLength: 16,
-    keyLength: 32,
-    hashName: "blake2b512",
-    hashLength: 64,
-    tagLength: 16,
-  },
-  "aes128ctr-sha256": {
-    algoName: "aes-128-ctr",
-    ivLength: 16,
-    keyLength: 16,
-    hashName: "sha256",
-    hashLength: 32,
-    tagLength: 16,
-  },
-};
-
-const DEFAULT_ALGO: keyof typeof ENCRYPTION_ALGOS = "chacha20-blake2b";
 
 function split (encrypted: string) {
   let splitEnc = encrypted.split("$").slice(1, -1);
-  let algo: keyof typeof ENCRYPTION_ALGOS = splitEnc[0] as any;
-  if (!ENCRYPTION_ALGOS[algo]) throw new Error("Invalid algorithm identifier");
+  let algo: keyof typeof constants.ENCRYPTION_ALGOS = splitEnc[0] as any;
+  if (!constants.ENCRYPTION_ALGOS[algo]) throw new Error("Invalid algorithm identifier");
   let [ iv, tag, encryptedToken, hashedToken ] = splitEnc[1].split(":").map(el => Buffer.from(el, "base64"));
 
   return {
@@ -44,13 +24,27 @@ function join ({ algo, iv, tag, encryptedToken, hashedToken }: { algo: string, i
   return `$${algo}$${data}$`;
 }
 
-function _encrypt (token: string, key: string) {
-  let algoSpecs = ENCRYPTION_ALGOS[DEFAULT_ALGO];
+function _pbkdf2Key (password: string, iv: Buffer): Promise<Buffer> {
+  return new Promise((res, rej) => {
+    let algo = constants.DEFAULT_HASH_ALGO;
+    let rounds = constants.DEFAULT_ROUNDS;
+    let keylen: number = constants.HASH_ALGOS[algo].keylen;
+
+    if (crypto.getHashes().indexOf(algo) === -1) throw new Error("Invalid hashing algorithm");
+    return crypto.pbkdf2(password, iv, rounds, keylen, algo, (err, hash) => {
+      if (err) return rej(err);
+      return res(hash);
+    });
+  });
+}
+
+async function _encrypt (token: string, key: string) {
+  let algoSpecs = constants.ENCRYPTION_ALGOS[constants.DEFAULT_ENCRYPTION_ALGO];
   if (crypto.getCiphers().indexOf(algoSpecs.algoName) === -1) throw new Error("Invalid encryption algorithm");
   if (crypto.getHashes().indexOf(algoSpecs.hashName) === -1) throw new Error("Invalid hashing algorithm");
   let tokenBuffer = Buffer.from(token, "utf8");
   let iv = crypto.randomBytes(algoSpecs.ivLength);
-  let derivedKey = crypto.createHash(algoSpecs.hashName).update(key).digest().slice(0, algoSpecs.keyLength);
+  let derivedKey = (await _pbkdf2Key(key, iv)).slice(0, algoSpecs.keyLength);
   let hashedToken = crypto.createHash(algoSpecs.hashName).update(iv).update(tokenBuffer).digest().slice(0, algoSpecs.hashLength);
   if (derivedKey.length !== algoSpecs.keyLength) throw new Error("Hash not long enough");
   let cipher = crypto.createCipheriv(algoSpecs.algoName, derivedKey, iv);
@@ -58,20 +52,17 @@ function _encrypt (token: string, key: string) {
   outBuffers.push(cipher.update(tokenBuffer));
   outBuffers.push(cipher.final());
   let encryptedToken = Buffer.concat(outBuffers);
-  let tag = crypto.createHash(algoSpecs.hashName).update(DEFAULT_ALGO).update(derivedKey).update(iv).update(encryptedToken).digest().slice(0, algoSpecs.tagLength);
-  let outString = join({ algo: DEFAULT_ALGO, iv: iv, tag: tag, encryptedToken: encryptedToken, hashedToken: hashedToken });
+  let tag = crypto.createHash(algoSpecs.hashName).update(constants.DEFAULT_ENCRYPTION_ALGO).update(derivedKey).update(iv).update(encryptedToken).digest().slice(0, algoSpecs.tagLength);
+  let outString = join({ algo: constants.DEFAULT_ENCRYPTION_ALGO, iv: iv, tag: tag, encryptedToken: encryptedToken, hashedToken: hashedToken });
   return outString;
 }
 
-// empty type extending boolean, to provide better documentation through types
-interface IsTagValid extends Boolean {}
-
-function _decrypt (encryptedToken: string, key: string): [ RawToken, IsTagValid ] {
+async function _decrypt (encryptedToken: string, key: string): Promise<[ string, boolean ]> {
   let parsedToken = split(encryptedToken);
-  let algoSpecs = ENCRYPTION_ALGOS[parsedToken.algo];
+  let algoSpecs = constants.ENCRYPTION_ALGOS[parsedToken.algo];
   if (crypto.getCiphers().indexOf(algoSpecs.algoName) === -1) throw new Error("Invalid encryption algorithm");
   if (crypto.getHashes().indexOf(algoSpecs.hashName) === -1) throw new Error("Invalid hashing algorithm");
-  let derivedKey = crypto.createHash(algoSpecs.hashName).update(key).digest().slice(0, algoSpecs.keyLength);
+  let derivedKey = (await _pbkdf2Key(key, parsedToken.iv)).slice(0, algoSpecs.keyLength);
   if (derivedKey.length !== algoSpecs.keyLength) throw new Error("Hash not long enough");
   let decipher = crypto.createDecipheriv(algoSpecs.algoName, derivedKey, parsedToken.iv);
   let outBuffers = [];
@@ -85,37 +76,40 @@ function _decrypt (encryptedToken: string, key: string): [ RawToken, IsTagValid 
 
 function _verify (encryptedToken: string, toCompare: string): boolean {
   let parsedToken = split(encryptedToken);
-  let algoSpecs = ENCRYPTION_ALGOS[parsedToken.algo];
+  let algoSpecs = constants.ENCRYPTION_ALGOS[parsedToken.algo];
   if (crypto.getHashes().indexOf(algoSpecs.hashName) === -1) throw new Error("Invalid hashing algorithm");
   let hashedToken = crypto.createHash(algoSpecs.hashName).update(parsedToken.iv).update(Buffer.from(toCompare, "utf8")).digest().slice(0, algoSpecs.hashLength);
   let isEqual = crypto.timingSafeEqual(hashedToken, parsedToken.hashedToken);
   return isEqual;
 }
 
-// empty types extending string, to provide better documentation through types
-interface RawToken extends String {}
-interface EncryptedToken extends String {}
-
-export function generate (username: string, password: string): [ RawToken, EncryptedToken ] {
+/**
+ * @returns [ Unencrypted token, encrypted token string ]
+ */
+export async function generate (password: string): Promise<[ string, string ]> {
   let genToken = token();
-  let key = `${username}:${password}`;
-  let encryptedToken = _encrypt(genToken, key);
+  let encryptedToken = await _encrypt(genToken, password);
   return [ genToken, encryptedToken ];
 }
 
-export function decrypt (encryptedToken: EncryptedToken, username: string, password: string): RawToken {
-  let key = `${username}:${password}`;
-  let [ decryptedToken, isTagValid ] = _decrypt(encryptedToken as string, key);
+export async function encrypt (token: string, password: string): Promise<string> {
+  let encryptedToken = await _encrypt(token, password);
+  return encryptedToken;
+}
+
+export async function decrypt (encryptedToken: string, password: string): Promise<string> {
+  let [ decryptedToken, isTagValid ] = await _decrypt(encryptedToken, password);
   if (!isTagValid) return null;
   return decryptedToken;
 }
 
-export function verify (encryptedToken: EncryptedToken, toCompare: RawToken) {
-  return _verify(encryptedToken as string, toCompare as string);
+export function verify (encryptedToken: string, toCompare: string) {
+  return _verify(encryptedToken, toCompare);
 }
 
 export default {
   generate,
+  encrypt,
   decrypt,
   verify,
 };
