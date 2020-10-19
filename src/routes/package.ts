@@ -93,8 +93,8 @@ export default (database: DbConnection, arweave: ArwConnection) => {
 
     if (authHeader.startsWith("Bearer ")) {
        dbUser = await database.repositories.User.findOne({ where: { apiKey: authHeader.slice("Bearer ".length) } });
-    } else if (authHeader.startsWith("NETA1 ")) {
-      let [ username, apiKey ] = authHeader.slice("NETA1 ".length).split(" ");
+    } else if (authHeader.startsWith("NEAT1 ")) {
+      let [ username, apiKey ] = authHeader.slice("NEAT1 ".length).split(" ");
       if (!username || !apiKey) return res.sendStatus(401);
       let dbUserN = await database.repositories.User.findOne({ where: { name: username } });
       if (!dbUserN) return res.sendStatus(401);
