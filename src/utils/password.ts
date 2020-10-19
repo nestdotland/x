@@ -38,7 +38,7 @@ function split (hashed: string) {
 
 function join ({ salt, hash, algo, rounds }: { salt: Buffer, hash: Buffer, algo: string, rounds: number }) {
   let meta = `${algo}:${rounds}`;
-  let data = `${salt.toString("base64")}:${hash.toString("base64")}`;
+  let data = `${salt.toString("base64")}:${hash.toString("base64")}`.replace(/=+/g, "");
   return `$${meta}$${data}$`;
 }
 
