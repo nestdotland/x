@@ -8,18 +8,21 @@ const reg = /^(?<name>[\-\w]+)@(?<version>(?:(?:[0-9]+)\.(?:[0-9]+)\.(?:[0-9]+)(
 
 // add tests
 suite
-  .add("RegEx version", function() {
-   reg.exec(mod)
+  .add("RegEx version", function () {
+    reg.exec(mod);
   })
-  .add("String version", function() {
-    let [ [ packageName, packageVersion ], ...fileNameParts ] = mod.split("/").slice(1).map((e, i) => (i === 0) ? e.split("@") : e);
+  .add("String version", function () {
+    let [[packageName, packageVersion], ...fileNameParts] = mod
+      .split("/")
+      .slice(1)
+      .map((e, i) => (i === 0 ? e.split("@") : e));
     const name = "/" + fileNameParts.join("/");
     semver.valid(packageVersion);
   })
-  .on("cycle", function(event) {
+  .on("cycle", function (event) {
     console.log(String(event.target));
   })
-  .on("complete", function() {
+  .on("complete", function () {
     console.log("Fastest is " + this.filter("fastest").map("name"));
   })
-  .run({ "async": true });
+  .run({ async: true });

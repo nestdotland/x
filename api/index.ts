@@ -1,9 +1,6 @@
 import { NowRequest, NowResponse } from "@vercel/node";
-
-// import fetch from "node-fetch";
-
-import { getNameData } from "./lib/file_name_util";
-import { sendError } from "./lib/send_error";
+import { getNameData } from "./utils/file_name_util";
+import { sendError } from "./utils/send_error";
 
 const MOCK_MALICIOUS = false;
 
