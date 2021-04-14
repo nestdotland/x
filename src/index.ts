@@ -35,7 +35,7 @@ async function start () {
 
   // deno import intellisense
   server.get("/.well-known/deno-import-intellisense.json", (req, res) => {
-    res.redirect(301, "https://raw.githubusercontent.com/nestdotland/deno-import-intellisense/main/deno-import-intellisense.json");
+    res.redirect(301, "https://intellisense.nest.land/deno-import-intellisense.json");
   })
 
   server.use("/api", authRouter(database));
