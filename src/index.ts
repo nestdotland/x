@@ -33,14 +33,14 @@ async function start () {
     });
   }
 
+  // deno import intellisense
+  server.get("/.well-known/deno-import-intellisense.json", (req, res) => {
+    res.redirect(301, "https://raw.githubusercontent.com/nestdotland/deno-import-intellisense/main/deno-import-intellisense.json");
+  })
+
   server.use("/api", authRouter(database));
   server.use("/api", packageRouter(database, arweave));
   server.use("/", cdnRouter(arweave, database));
-
-  // deno import intellisense
-  server.get("/.well-known/deno-import-intellisense.json", (req, res) => {
-    res.status(301).redirect("https://raw.githubusercontent.com/nestdotland/deno-import-intellisense/main/deno-import-intellisense.json")
-  })
 
   server.all("**", (req, res, next) => {
     return res.sendStatus(404);
