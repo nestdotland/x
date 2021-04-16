@@ -24,7 +24,7 @@ interface OngoingUpload {
 
 const ongoingUploads = new Map<string, OngoingUpload>();
 
-define({ 'application/javascript': ['js', 'ts'] }, true);
+define({ 'application/typescript': ['ts'] }, true);
 
 export default (database: DbConnection, arweave: ArwConnection) => {
   const router = Router();
