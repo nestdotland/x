@@ -4,7 +4,7 @@ import { DbConnection } from "../utils/driver";
 import { get as getTemp, has as hasTemp } from "../utils/temp";
 import { get as getTransaction, ArwConnection } from "../utils/arweave";
 
-define({ 'application/typescript': ['ts'] });
+define({ 'application/typescript': ['ts'] }, true);
 
 export default (arweave: ArwConnection, database: DbConnection) => {
   const router = Router();
